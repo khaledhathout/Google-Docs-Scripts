@@ -1,0 +1,41 @@
+function Replace001() {
+  const corrections = {
+    "اال": "الا",
+    "واالل": "والال",
+    "األ": "الأ",
+    "اإل": "الإ",
+    "اآ": "الآ"
+  };
+
+  const doc = DocumentApp.getActiveDocument();
+  const body = doc.getBody();
+  const total = body.getNumChildren();
+
+  for (let i = 0; i < total; i++) {
+    const element = body.getChild(i);
+    if (element.getType() === DocumentApp.ElementType.PARAGRAPH) {
+      const paragraph = element.asParagraph();
+      const text = paragraph.getText().trim();
+
+      // تخطي الفقرات الفارغة
+      if (!text) continue;
+
+      const words = text.split(/\s+/);
+      const correctedWords = words.map(word => {
+        for (const [wrongStart, correctStart] of Object.entries(corrections)) {
+          if (word.startsWith(wrongStart)) {
+            return word.replace(wrongStart, correctStart);
+          }
+        }
+        return word;
+      });
+
+      // تأكد من أن النتيجة ليست فارغة قبل التعديل
+      if (correctedWords.length > 0) {
+        paragraph.setText(correctedWords.join(" "));
+      }
+    }
+  }
+
+  DocumentApp.getUi().alert("✅ تم تعديل بدايات الكلمات بنجاح!");
+}
