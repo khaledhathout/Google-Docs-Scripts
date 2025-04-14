@@ -1,5 +1,5 @@
-function Replace002() {
- // قائمة الكلمات الكاملة للاستبدال
+function ReplaceStage002() {
+  // قائمة الكلمات الكاملة للاستبدال
   const replacements = {
     "»": "",
     "جملس": "مجلس",
@@ -107,6 +107,7 @@ function Replace002() {
     "اثين": "اثني",
     "ّ": "",
     "ُ": "",
+    "سؤاال": "سؤال",
     "word3": "newWord3"
   };
 
@@ -123,18 +124,7 @@ function Replace002() {
 
       const correctedWords = words.map(word => {
         // تصحيح كامل للكلمة
-        if (replacements[word]) {
-          return replacements[word];
-        }
-
-        // تصحيح البدايات
-        for (const [wrongStart, correctStart] of Object.entries(beginnings)) {
-          if (word.startsWith(wrongStart)) {
-            return word.replace(wrongStart, correctStart);
-          }
-        }
-
-        return word;
+        return replacements[word] || word;
       });
 
       paragraph.setText(correctedWords.join(" "));
