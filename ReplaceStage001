@@ -1,43 +1,118 @@
-// هذا البرنامج هدفه هو مسح التشكيل وكذلك ضبط - الا - 
-
-function Replace001() {
-  const corrections = {
-    "اال": "الا",
-    "واالل": "والال",
-    "األ": "الأ",
-    "اإل": "الإ",
-    "اآ": "الآ"
-  };
-
-  const doc = DocumentApp.getActiveDocument();
-  const body = doc.getBody();
-  const total = body.getNumChildren();
-
-  for (let i = 0; i < total; i++) {
-    const element = body.getChild(i);
-    if (element.getType() === DocumentApp.ElementType.PARAGRAPH) {
-      const paragraph = element.asParagraph();
-      const text = paragraph.getText().trim();
-
-      // تخطي الفقرات الفارغة
-      if (!text) continue;
-
-      const words = text.split(/\s+/);
-      const correctedWords = words.map(word => {
-        for (const [wrongStart, correctStart] of Object.entries(corrections)) {
-          if (word.startsWith(wrongStart)) {
-            return word.replace(wrongStart, correctStart);
-          }
-        }
-        return word;
-      });
-
-      // تأكد من أن النتيجة ليست فارغة قبل التعديل
-      if (correctedWords.length > 0) {
-        paragraph.setText(correctedWords.join(" "));
-      }
+// ===== 1.1 ===== فتح مستند جوجل دوكس من خلال الرابط =====
+function openGoogleDoc() 
+    {
+    const docUrl = "https://docs.google.com/document/d/1cyrBhy8AxgAupj8pGNTeaRBajuUAKtgXOkyDD1ycisY/edit?usp=sharing"; // يمكن تغيير الرابط حسب الحاجة 
+    const docId = extractDocId(docUrl);
+    const doc = DocumentApp.openById(docId);
+    return doc;
     }
-  }
 
-  DocumentApp.getUi().alert("✅ تم تعديل بدايات الكلمات بنجاح!");
-}
+// ===== 1.1.1 ===== استخراج معرف المستند من الرابط =====
+function extractDocId(url) 
+    {
+    const match = url.match(/[-\w]{25,}/);
+    return match ? match[0] : null;
+    }
+
+// ===== 1.2 ===== جلب التصحيحات من Google Sheets =====
+function getCorrectionsFromSheet()
+    {
+    const sheetId = "17-2VvamWAmfdjD-HPwdRDxUY3NmyZLkD4VgAwEmeXeY";
+    const sheetName = "Google Script";
+    const spreadsheet = SpreadsheetApp.openById(sheetId);
+    const sheet = spreadsheet.getSheetByName(sheetName);
+    const data = sheet.getRange("A2:B" + sheet.getLastRow()).getValues();
+
+    const corrections = {};
+    for (const [wrong, correct] of data)
+        {
+        if (wrong && correct)
+            {
+            corrections[wrong] = correct;
+            }
+        }
+    return corrections;
+    }
+
+// ===== 2.1 ===== الجزء الثاني: تنفيذ المطلوب - مسح التشكيل =====
+function removeTashkeel(text) 
+    {
+    return text.replace(/[ؐ-ًؚ-ٟۖ-ۭ]/g, "");
+    }
+
+// ===== 2.2.1 ===== تأمين النص داخل RegExp =====
+function escapeRegExp(string)
+    {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+// ===== 2.2 ===== الجزء الثاني: تنفيذ المطلوب - تعريف قائمة التصحيحات و تنفيذها =====
+function applyCorrections(text)
+    {
+    const corrections = getCorrectionsFromSheet();
+    for (const [wrong, correct] of Object.entries(corrections))
+        {
+        text = text.replace(new RegExp(escapeRegExp(wrong), "g"), correct);
+        }
+    return text;
+    }
+
+// ===== 3.1 ===== الجزء الثالث: المراجعة والإعتماد - إعادة كتابة النص المعدل في مكانه =====
+function updateDocumentText() 
+    {
+    const doc = openGoogleDoc();
+    const body = doc.getBody();
+    const total = body.getNumChildren();
+
+    for (let i = 0; i < total; i++) 
+        {
+        const element = body.getChild(i);
+
+        if (element.getType() === DocumentApp.ElementType.PARAGRAPH) 
+            {
+            const paragraph = element.asParagraph();
+            let text = paragraph.getText();
+            text = removeTashkeel(text);
+            text = applyCorrections(text);
+            if (text.trim()) 
+                {
+                paragraph.setText(text);
+                paragraph.setAlignment(detectTextDirection(text));
+                }
+            }
+
+        else if (element.getType() === DocumentApp.ElementType.TABLE) 
+            {
+            const table = element.asTable();
+            for (let r = 0; r < table.getNumRows(); r++) 
+                {
+                const row = table.getRow(r);
+                for (let c = 0; c < row.getNumCells(); c++) 
+                    {
+                    const cell = row.getCell(c);
+                    let text = cell.getText();
+                    text = removeTashkeel(text);
+                    text = applyCorrections(text);
+                    if (text.trim()) 
+                        {
+                        cell.setText(text);
+                        cell.setTextAlignment(detectTextDirection(text));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+// ===== 3.2 ===== تحديد محاذاة الفقرة حسب اللغة =====
+function detectTextDirection(text) 
+    {
+    const rtlChars = /[\u0600-\u06FF]/; // Arabic range
+    return rtlChars.test(text) ? DocumentApp.TextAlignment.RIGHT : DocumentApp.TextAlignment.LEFT;
+    }
+
+// ===== 4.1 ===== الجزء الرابع: دالة التشغيل الموحدة =====
+function runFullCorrection() 
+    {
+    updateDocumentText();
+    }
